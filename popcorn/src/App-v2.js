@@ -1,12 +1,55 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import StarRating from  "./StarRating.js";
-import { useMovies } from './useMovies.js';
-import { useLocalStorage} from './useLocalStorageState.js';
-import { useKey } from './useKey.js';
-
 
 const KEY = "239749fa";
+
+const tempMovieData = [
+  {
+    imdbID: "tt1375666",
+    Title: "Inception",
+    Year: "2010",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg",
+  },
+  {
+    imdbID: "tt0133093",
+    Title: "The Matrix",
+    Year: "1999",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVkLWI0MTEtMDllZjNkYzNjNTc4L2ltYWdlXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg",
+  },
+  {
+    imdbID: "tt6751668",
+    Title: "Parasite",
+    Year: "2019",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BYWZjMjk3ZTItODQ2ZC00NTY5LWE0ZDYtZTI3MjcwN2Q5NTVkXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_SX300.jpg",
+  },
+];
+
+const tempWatchedData = [
+  {
+    imdbID: "tt1375666",
+    Title: "Inception",
+    Year: "2010",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg",
+    runtime: 148,
+    imdbRating: 8.8,
+    userRating: 10,
+  },
+  {
+    imdbID: "tt0088763",
+    Title: "Back to the Future",
+    Year: "1985",
+    Poster:
+      "https://m.media-amazon.com/images/M/MV5BZmU0M2Y1OGUtZjIxNi00ZjBkLTg1MjgtOWIyNThiZWIwYjRiXkEyXkFqcGdeQXVyMTQxNzMzNDI@._V1_SX300.jpg",
+    runtime: 116,
+    imdbRating: 8.5,
+    userRating: 9,
+  },
+];
 
 
 
@@ -16,24 +59,17 @@ const average = (arr) =>
 
   export default function App() {
     const [query, setQuery ] = useState("")
-    //Check useMovies app
-    //CALL THE CUSTOM HOOK and import 
-    const { movies, isLoading, error } = useMovies(query,handleCloseMovie) //this is like having a;ll the code as before
+    const [movies, setMovies] = useState([]);
+    const [watched, setWatched] = useState([]);
+    //Loading state false from the start
 
+    const [isLoading, setIsLoading] = useState(false)
+
+    //for Errors 
+    const [error, setError] = useState("")
     //state to get id
     const [selectedId, setSelectedId] = useState(null)
-
-    //const [watched, setWatched] = useState([]);
     
-    //custom hook 
-    const [watched, setWatched] = useLocalStorage([])
-
-    /*
-    const [watched, setWatched] = useState(function () {
-      const storedValue = localStorage.getItem("watched");
-      return JSON.parse(storedValue)
-    });
-    */
 
 
     /*
@@ -83,11 +119,76 @@ function handleDeleteWatched(id) {
 }
  
 
-
-
     //How to fecth data in React  use useEffect which regiaters this function 
 
-    
+    useEffect(function() {
+
+      //clean up function 
+
+      const controller = new AbortController()
+
+    async function fetchMovies() {
+      //add try catch block
+      try{
+
+      //set isLoading to true  before data fetching
+
+      setIsLoading(true)
+      //reset the error so it can show response on ui
+      setError("")
+      const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
+      {signal: controller.signal})
+
+      //if res is not ok, bad net work
+       if(!res.ok)
+       throw new Error("Something went wrong with fetching movies")
+
+
+      const data = await res.json();
+      //if movie does not exist
+
+      if(data.Response === "False") throw new Error
+      ("Movie not found")
+      //call state 
+       setMovies(data.Search);
+       setError("")
+
+    } catch (err) {
+       console.error(err.message)
+
+       //fix error abort
+       if(err.name !== "AbortError") {
+        setError(err.message)
+       }
+       setError(err.message)
+    } finally {
+        //set isLoadimg to false when its finish\
+      setIsLoading(false)
+    }
+
+    }
+
+    //when we clear the search bar dont show no movie found
+    if(query.length < 3) {
+      setMovies([]); //Delete everything 
+      setError("")
+      return 
+    }
+    //Before fetcg movie, close everything first
+    handleCloseMovie()
+    fetchMovies();
+
+    //main clean up function, this aborts http request that are not
+    // important from running at the same time.
+
+
+    return function() {
+      controller.abort()
+    }
+       
+    }, [query]); //synch with the state
+
+
 
 
    /*
@@ -188,21 +289,6 @@ return (
 )
 }
 function Search({query, setQuery}) {
-
-  const inputEl = useRef(null)
-
-  //reuse the key custom hook
-  useKey("Enter", function() {
-    if(document.activeElement === inputEl.current)
-    return 
-  //press enter show focus
-    inputEl.current.focus();
-          //clear when click enter
-          setQuery("")
-
-  })
-
-  
   return(
 
     <input
@@ -211,7 +297,6 @@ function Search({query, setQuery}) {
     placeholder="Search movies..."
     value={query}
     onChange={(e) => setQuery(e.target.value)}
-    ref={inputEl}
   />
   )
 }
@@ -311,26 +396,6 @@ const [movie, setMovie] = useState({}) //empty obj from api call
    // Rating 
    const [userRating, setUserRating] = useState("")
 
-   //update when ever rating is clicked, TRACK HOW MANY TIMES RATING IS CLICKED
-   //We dont want a re-render or appear on ui
-
-   
-   
-   const countRef = useRef(0)
-
-   useEffect(function() {
-    //if(userRating) countRef.current = countRef.current + 1
-    if(userRating) countRef.current = countRef.current++;
-   }, [userRating]) //Any time userRating updates, the component re-renders, useEffects and countRef executes
-
-
-
-   
-   //use useEffect cause, not allowed to mutate a ref in render logic
-
-   
-
-
    //Rate only movies that has not been rated
    const isWatched = watched.map((movie) => movie.imdbID).
    includes(selectedId)
@@ -364,7 +429,6 @@ function handleAdd() {
 
     //add rating when hover or clicked
     userRating,
-    countRatingDecisions: countRef.current,
   }
 
   onAddWatched(newWatchedMovie)
@@ -372,9 +436,32 @@ function handleAdd() {
   onCloseMovie()
 }
 
+//for using excape key on keyboard to exit selected movies
+//use useEffect since we are interacting with Dom which outside of component ie side effects
 
-//Custom hook of Escape key
-useKey('Escape',onCloseMovie)
+
+useEffect(
+
+  function () {
+    function callback(e) {
+      if(e.code === "Escape") {
+        onCloseMovie()
+        console.log('press')
+
+      }
+    }
+
+    document.addEventListener("keydown", callback);
+
+    //clean up function, so closeMovie wont execute any time we press close
+
+    return function () {
+      document.removeEventListener("keydown", callback)
+    };
+  },
+
+  [onCloseMovie]
+)
 
 useEffect(function () {
   async function getMovieDetails() {

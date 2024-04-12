@@ -11,7 +11,7 @@ const containerStyle = {
 }
 
 
-const startContainerStyle = {
+const starContainerStyle = {
   display:"flex",
   
 }
@@ -57,7 +57,7 @@ const textStyle = {
 }
   return (
     <div style={containerStyle} className={className}>
-      <div style={startContainerStyle }>
+      <div style={starContainerStyle }>
         {Array.from({ length: maxRating }, (_, i) => (
           //  *<span>S{i + 1}</span>
           <Star key={i} onClick={() => handleRating(i + 1)}
